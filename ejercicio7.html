@@ -9,14 +9,18 @@
     <script id="shaderVs" type="x-shader/x-vertex">
         attribute vec4 a_Position;
         attribute vec2 a_TexCoord;
-        varying vec2 v_TexCoord;
+        attribute vec3 a_Normal;
 
         uniform mat4 u_pMatrix;
         uniform mat4 u_vMatrix;
         uniform mat4 u_mvMatrix;
-        varying highp vec4 v_Color;
+
+        varying vec2 v_TexCoord;
+        varying highp vec3 v_Normal;
+
         void main() {
             gl_Position = u_pMatrix * u_vMatrix * u_mvMatrix * a_Position;
+            v_Normal = normalize(a_Normal - vec3(gl_Position));
             v_TexCoord = a_TexCoord;
         }
     </script>
@@ -24,12 +28,22 @@
     <script id="shaderFs" type="x-shader/x-fragment">
         precision highp float;
         precision mediump float;
+        uniform vec3 u_LightColor;
+        uniform vec3 u_LightDirection;
+
         uniform sampler2D u_Sampler;
+
         varying vec2 v_TexCoord;
+        varying highp vec3 v_Normal;
+
 
         void main(void) {
-            gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+            float nDotL = max(dot(u_LightDirection, v_Normal), 0.0);
+            vec4 rgba = texture2D(u_Sampler, v_TexCoord);
+            vec3 diffuse = u_LightColor * rgba.rgb * nDotL;
+            gl_FragColor = vec4(diffuse, rgba.a);
         }
+
     </script>
 
     <script>
@@ -74,6 +88,7 @@
         function initVertexShader(gl) {
             // Vertexes and textures coordinates
             var vertexesAndTextures = [];
+            var normals = [];
             for (var i = 0; i <= LATITUDE_BANDS; i++) {
                 var theta = i * Math.PI / LATITUDE_BANDS;
                 var sinTheta = Math.sin(theta);
@@ -88,16 +103,25 @@
                     var y = cosTheta;
                     var z = cosPhi * sinTheta;
 
-                    //array nuevo que seran las normakes, quitando el radio, xyz
+//NUEVOOO
                     vertexesAndTextures.push(RADIUS * x);
                     vertexesAndTextures.push(RADIUS * y);
                     vertexesAndTextures.push(RADIUS * z);
 
+                    //IMPLEMENTA LA TEXTURA
                     var u = 1 - (j / LONGITUDE_BANDS);
                     var v = 1 - (i / LATITUDE_BANDS);
 
                     vertexesAndTextures.push(u);
                     vertexesAndTextures.push(v);
+
+                    var normalx = x;
+                    var normaly = y;
+                    var normalz = z;
+
+                    normals.push(normalx);
+                    normals.push(normaly);
+                    normals.push(normalz);
                 }
             }
 
@@ -130,6 +154,11 @@
             gl.enableVertexAttribArray(vertexColorAttribute);
             gl.vertexAttribPointer(vertexColorAttribute, 2, gl.FLOAT, false, 4 * (3 + 2), 4 * 3);
 
+
+            var vertexNormalAttribute = gl.getAttribLocation(gl.program, "a_Normal");
+            gl.enableVertexAttribArray(vertexNormalAttribute);
+            gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
+
             // Write indexes in gl.ELEMENT_ARRAY_BUFFER
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexes), gl.STATIC_DRAW);
@@ -146,6 +175,20 @@
             var vMatrixUniform = gl.getUniformLocation(gl.program, "u_vMatrix");
             var vMatrix = mat4.lookAt(mat4.create(), [0, 0, -3], [0, 0, 0], [0, 1, 0]);
             gl.uniformMatrix4fv(vMatrixUniform, false, vMatrix);
+
+            // Write u_LightColor
+            var lightColor = [ 1.0, 1.0, 1.0 ]; // white
+            var lightColorUniform = gl.getUniformLocation(gl.program, "u_LightColor");
+            gl.uniform3fv(lightColorUniform, lightColor);
+
+            // Write u_LightDirection
+            var x = document.getElementById("x").value;
+            var y = document.getElementById("y").value;
+            var z = document.getElementById("z").value;
+            var lightDirection = [ x, y, z ];
+            vec3.normalize(lightDirection, lightDirection);
+            var lightDirectionUniform = gl.getUniformLocation(gl.program, "u_LightDirection");
+            gl.uniform3fv(lightDirectionUniform, lightDirection);
         }
 
         function initTexturesAndDraw(gl) {
@@ -223,6 +266,11 @@
 
 <body onload="init()">
     <canvas id="myCanvas" width="640" height="480"></canvas>
+
+    <br><b>Light direction</b><br>
+    <input type="range" id="x" min="-20" max="20" value="2" step="1">X<br>
+    <input type="range" id="y" min="-20" max="20" value="-8" step="1">Y<br>
+    <input type="range" id="z" min="-20" max="20" value="-8" step="1">Z<br>
 </body>
 
 </html>
