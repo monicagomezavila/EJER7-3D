@@ -18,6 +18,7 @@
         varying vec2 v_TexCoord;
         varying highp vec3 v_Normal;
 
+
         void main() {
             gl_Position = u_pMatrix * u_vMatrix * u_mvMatrix * a_Position;
             v_Normal = normalize(a_Normal - vec3(gl_Position));
@@ -35,13 +36,14 @@
 
         varying vec2 v_TexCoord;
         varying highp vec3 v_Normal;
+        vec4 v_Rgba;
 
 
         void main(void) {
             float nDotL = max(dot(u_LightDirection, v_Normal), 0.0);
-            vec4 rgba = texture2D(u_Sampler, v_TexCoord);
-            vec3 diffuse = u_LightColor * rgba.rgb * nDotL;
-            gl_FragColor = vec4(diffuse, rgba.a);
+            v_Rgba = texture2D(u_Sampler, v_TexCoord);
+            vec3 diffuse = u_LightColor * v_Rgba.rgb * nDotL;
+            gl_FragColor = vec4(diffuse, v_Rgba.a);
         }
 
     </script>
@@ -52,10 +54,11 @@
         const LATITUDE_BANDS = 30;
         const LONGITUDE_BANDS = 30;
         const RADIUS = 1;
+        var canvas;
 
         function init() {
             // Get canvas object from the DOM
-            var canvas = document.getElementById("myCanvas");
+            canvas = document.getElementById("myCanvas");
 
             // Init WebGL context
             gl = canvas.getContext("webgl");
@@ -83,12 +86,32 @@
 
             // Init textures
             initTexturesAndDraw(gl);
+            drawScene();
+        }
+
+
+        function drawScene() {
+            // Clear
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            initProjection(gl,canvas);
+            // Rotate
+            var mvMatrix = mat4.fromRotation(mat4.create(), count, [0, 0.5, 0]);
+            var uMvMatrix = gl.getUniformLocation(gl.program, "u_mvMatrix");
+            gl.uniformMatrix4fv(uMvMatrix, false, mvMatrix);
+
+            // Draw
+            gl.drawElements(gl.TRIANGLES, LATITUDE_BANDS * LONGITUDE_BANDS * 3 * 2, gl.UNSIGNED_SHORT, 0);
+
+            // Call drawScene again in the next browser repaint
+            count += 0.01;
+            requestAnimationFrame(drawScene);
         }
 
         function initVertexShader(gl) {
             // Vertexes and textures coordinates
             var vertexesAndTextures = [];
             var normals = [];
+
             for (var i = 0; i <= LATITUDE_BANDS; i++) {
                 var theta = i * Math.PI / LATITUDE_BANDS;
                 var sinTheta = Math.sin(theta);
@@ -103,7 +126,6 @@
                     var y = cosTheta;
                     var z = cosPhi * sinTheta;
 
-//NUEVOOO
                     vertexesAndTextures.push(RADIUS * x);
                     vertexesAndTextures.push(RADIUS * y);
                     vertexesAndTextures.push(RADIUS * z);
@@ -115,13 +137,9 @@
                     vertexesAndTextures.push(u);
                     vertexesAndTextures.push(v);
 
-                    var normalx = x;
-                    var normaly = y;
-                    var normalz = z;
-
-                    normals.push(normalx);
-                    normals.push(normaly);
-                    normals.push(normalz);
+                    normals.push(x);
+                    normals.push(y);
+                    normals.push(z);
                 }
             }
 
@@ -166,14 +184,14 @@
 
         function initProjection(gl, canvas) {
             // Write u_pMatrix
-            var pMatrixUniform = gl.getUniformLocation(gl.program, "u_pMatrix");
             var ratio = canvas.width / canvas.height;
             var pMatrix = mat4.perspective(mat4.create(), 150, ratio, 0.1, 100);
+            var pMatrixUniform = gl.getUniformLocation(gl.program, "u_pMatrix");
             gl.uniformMatrix4fv(pMatrixUniform, false, pMatrix);
 
             // Write u_vMatrix
-            var vMatrixUniform = gl.getUniformLocation(gl.program, "u_vMatrix");
             var vMatrix = mat4.lookAt(mat4.create(), [0, 0, -3], [0, 0, 0], [0, 1, 0]);
+            var vMatrixUniform = gl.getUniformLocation(gl.program, "u_vMatrix");
             gl.uniformMatrix4fv(vMatrixUniform, false, vMatrix);
 
             // Write u_LightColor
@@ -196,7 +214,6 @@
             image.src = 'earth.png';
             image.onload = function () {
                 loadTexture(gl, "u_Sampler", image, 0, false);
-                drawScene();
             };
         }
 
@@ -215,22 +232,6 @@
             gl.uniform1i(fragmentSamplerUniform, unitNumber);
         }
 
-        function drawScene() {
-            // Clear
-            gl.clear(gl.COLOR_BUFFER_BIT);
-
-            // Rotate
-            var mvMatrix = mat4.fromRotation(mat4.create(), count, [0, 0.5, 0]);
-            var uMvMatrix = gl.getUniformLocation(gl.program, "u_mvMatrix");
-            gl.uniformMatrix4fv(uMvMatrix, false, mvMatrix);
-
-            // Draw
-            gl.drawElements(gl.TRIANGLES, LATITUDE_BANDS * LONGITUDE_BANDS * 3 * 2, gl.UNSIGNED_SHORT, 0);
-
-            // Call drawScene again in the next browser repaint
-            count += 0.01;
-            requestAnimationFrame(drawScene);
-        }
 
         function initShaders(gl, vs_source, fs_source) {
             // Compile shaders
@@ -268,9 +269,9 @@
     <canvas id="myCanvas" width="640" height="480"></canvas>
 
     <br><b>Light direction</b><br>
-    <input type="range" id="x" min="-20" max="20" value="2" step="1">X<br>
-    <input type="range" id="y" min="-20" max="20" value="-8" step="1">Y<br>
-    <input type="range" id="z" min="-20" max="20" value="-8" step="1">Z<br>
+    <input type="range" id="x" min="-20" max="20" value="0" step="1">X<br>
+    <input type="range" id="y" min="-20" max="20" value="-20" step="1">Y<br>
+    <input type="range" id="z" min="-20" max="20" value="-20" step="1">Z<br>
 </body>
 
 </html>
