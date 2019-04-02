@@ -173,10 +173,10 @@
             gl.vertexAttribPointer(vertexColorAttribute, 2, gl.FLOAT, false, 4 * (3 + 2), 4 * 3);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
-            
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexesAndTextures), gl.STATIC_DRAW);
+
             var vertexNormalAttribute = gl.getAttribLocation(gl.program, "a_Normal");
-            gl.enableVertexAttribArray(vertexNormalAttribute);
+            gl.enableVertexAttribArray(normals);
             gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
 
             // Write indexes in gl.ELEMENT_ARRAY_BUFFER
